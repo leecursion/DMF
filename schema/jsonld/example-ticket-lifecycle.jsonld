@@ -1,0 +1,120 @@
+{
+  "@context": "./dmf-context.jsonld",
+  "@graph": [
+    { "id": "urn:dmf:tenant:acme",       "type": ["Agent", "Organization"], "title": "ACME Corp" },
+    { "id": "urn:dmf:agent:alice",       "type": ["Agent", "Person"], "actedOnBehalfOf": "urn:dmf:tenant:acme" },
+    { "id": "urn:dmf:agent:bob",         "type": ["Agent", "Person"], "actedOnBehalfOf": "urn:dmf:tenant:acme" },
+    { "id": "urn:dmf:agent:carol",       "type": ["Agent", "Person"], "actedOnBehalfOf": "urn:dmf:tenant:acme" },
+    { "id": "urn:dmf:agent:verifier-bot","type": ["Agent", "SoftwareAgent"], "actedOnBehalfOf": "urn:dmf:tenant:acme" },
+
+    { "id": "urn:dmf:policy:approval/standard@3", "type": ["Entity", "Plan", "ApprovalPolicy"],
+      "policySha256": "<sha256 of JCS(policies/approval-policy.yaml)>" },
+    { "id": "urn:dmf:policy:acceptance/security-policy@7", "type": ["Entity", "Plan", "AcceptanceCriteria"] },
+    { "id": "urn:dmf:policy:gate/official@2", "type": ["Entity", "Plan", "GatePolicy"] },
+    { "id": "urn:dmf:policy:restrict/security-policy@1", "type": ["Entity", "Plan", "RestrictPolicy"] },
+
+    { "id": "urn:dmf:doc:sec-policy", "type": ["Entity", "Document"],
+      "title": "Information Security Policy", "identifier": "SEC-POL-001",
+      "versionSeriesId": "sec-policy", "accessRights": "CONFIDENTIAL",
+      "policyIds": ["urn:dmf:policy:restrict/security-policy@1"] },
+
+    { "id": "urn:dmf:module:sec-policy/core.rules", "type": ["Entity", "Module"],
+      "isPartOf": "urn:dmf:doc:sec-policy", "mutability": "dmf:IMMUTABLE_CORE" },
+    { "id": "urn:dmf:module:sec-policy/sec.scope",  "type": ["Entity", "Module"],
+      "isPartOf": "urn:dmf:doc:sec-policy", "mutability": "dmf:RESTRICTED",
+      "dependsOn": ["urn:dmf:module:sec-policy/core.rules"] },
+
+    { "id": "urn:dmf:modrev:scope-v1", "type": ["Entity", "ModuleRevision"],
+      "specializationOf": "urn:dmf:module:sec-policy/sec.scope", "contentSha256": "9f2c…", "ordinal": 2 },
+    { "id": "urn:dmf:modrev:scope-v2", "type": ["Entity", "ModuleRevision"],
+      "specializationOf": "urn:dmf:module:sec-policy/sec.scope", "contentSha256": "41aa…", "ordinal": 2,
+      "wasRevisionOf": "urn:dmf:modrev:scope-v1", "wasGeneratedBy": "urn:dmf:activity:edit-1",
+      "wasAttributedTo": "urn:dmf:agent:alice" },
+
+    { "id": "urn:dmf:version:sec-policy/7", "type": ["Entity", "Collection", "DocumentVersion"],
+      "specializationOf": "urn:dmf:doc:sec-policy", "versionLabel": "7",
+      "manifestRoot": "b1c4…", "restrictSeal": "5e0d…", "versionHash": "77ab…" },
+
+    { "id": "urn:dmf:ticket:DMF-1042", "type": ["Activity", "Ticket"],
+      "ticketKey": "DMF-1042", "ticketKind": "dmf:EDIT", "riskLevel": 2, "status": "dmf:PROMOTED",
+      "startedAtTime": "2026-11-10T01:00:00Z", "endedAtTime": "2026-11-11T03:10:00Z",
+      "used": ["urn:dmf:version:sec-policy/7"],
+      "targetModule": ["urn:dmf:module:sec-policy/sec.scope"],
+      "qualifiedAssociation": [
+        { "type": "prov:Association", "agent": "urn:dmf:agent:alice", "hadRole": "dmf:requester",
+          "hadPlan": "urn:dmf:policy:approval/standard@3" }
+      ] },
+
+    { "id": "urn:dmf:activity:edit-1", "type": ["Activity", "EditActivity"],
+      "isPartOf": "urn:dmf:ticket:DMF-1042",
+      "startedAtTime": "2026-11-10T01:05:00Z", "endedAtTime": "2026-11-10T02:40:00Z",
+      "qualifiedUsage": [
+        { "type": "prov:Usage", "entity": "urn:dmf:version:sec-policy/7", "hadRole": "dmf:base" }
+      ],
+      "qualifiedAssociation": [
+        { "type": "prov:Association", "agent": "urn:dmf:agent:alice", "hadRole": "dmf:author" }
+      ] },
+
+    { "id": "urn:dmf:version:sec-policy/8", "type": ["Entity", "Collection", "DocumentVersion"],
+      "specializationOf": "urn:dmf:doc:sec-policy", "versionLabel": "8",
+      "wasRevisionOf": "urn:dmf:version:sec-policy/7", "wasGeneratedBy": "urn:dmf:activity:edit-1",
+      "hadMember": ["urn:dmf:modrev:core-v1", "urn:dmf:modrev:intro-v3", "urn:dmf:modrev:scope-v2"],
+      "manifestRoot": "c93e…", "restrictSeal": "5e0d…", "versionHash": "a812…", "parentVersionHash": "77ab…",
+      "checkinComment": "Narrow scope to production systems" },
+
+    { "id": "urn:dmf:activity:restrict-1", "type": ["Activity", "RestrictCheck"],
+      "isPartOf": "urn:dmf:ticket:DMF-1042", "wasInformedBy": "urn:dmf:activity:edit-1",
+      "used": ["urn:dmf:version:sec-policy/7", "urn:dmf:version:sec-policy/8",
+               "urn:dmf:policy:restrict/security-policy@1"] },
+
+    { "id": "urn:dmf:activity:verify-1", "type": ["Activity", "VerifyActivity"],
+      "isPartOf": "urn:dmf:ticket:DMF-1042", "wasInformedBy": "urn:dmf:activity:restrict-1",
+      "used": ["urn:dmf:version:sec-policy/8", "urn:dmf:policy:acceptance/security-policy@7"],
+      "qualifiedAssociation": [
+        { "type": "prov:Association", "agent": "urn:dmf:agent:verifier-bot", "hadRole": "dmf:verifier",
+          "hadPlan": "urn:dmf:policy:acceptance/security-policy@7" }
+      ] },
+    { "id": "urn:dmf:report:verify-1", "type": ["Entity", "VerificationReport"],
+      "wasGeneratedBy": "urn:dmf:activity:verify-1", "verdict": "dmf:PASS",
+      "subjectManifestRoot": "c93e…", "conformsTo": "urn:dmf:policy:acceptance/security-policy@7" },
+
+    { "id": "urn:dmf:activity:shadow-1", "type": ["Activity", "ShadowDeploy"],
+      "isPartOf": "urn:dmf:ticket:DMF-1042", "used": ["urn:dmf:version:sec-policy/8"] },
+    { "id": "urn:dmf:release:sec-policy/shadow/8", "type": ["Entity", "Release"], "channel": "dmf:SHADOW",
+      "wasGeneratedBy": "urn:dmf:activity:shadow-1", "wasDerivedFrom": ["urn:dmf:version:sec-policy/8"],
+      "manifestRoot": "c93e…" },
+
+    { "id": "urn:dmf:activity:approve-1", "type": ["Activity", "ApproveActivity"],
+      "isPartOf": "urn:dmf:ticket:DMF-1042",
+      "used": ["urn:dmf:version:sec-policy/8", "urn:dmf:report:verify-1",
+               "urn:dmf:release:sec-policy/shadow/8"],
+      "qualifiedAssociation": [
+        { "type": "prov:Association", "agent": "urn:dmf:agent:bob",   "hadRole": "dmf:reviewer",
+          "hadPlan": "urn:dmf:policy:approval/standard@3" },
+        { "type": "prov:Association", "agent": "urn:dmf:agent:carol", "hadRole": "dmf:documentOwner",
+          "hadPlan": "urn:dmf:policy:approval/standard@3" }
+      ] },
+    { "id": "urn:dmf:decision:DMF-1042", "type": ["Entity", "Decision"],
+      "wasGeneratedBy": "urn:dmf:activity:approve-1", "outcome": "dmf:APPROVE",
+      "subjectManifestRoot": "c93e…", "conformsTo": "urn:dmf:policy:approval/standard@3",
+      "wasDerivedFrom": ["urn:dmf:approval:bob-1042", "urn:dmf:approval:carol-1042"] },
+
+    { "id": "urn:dmf:activity:promote-1", "type": ["Activity", "PromoteActivity"],
+      "isPartOf": "urn:dmf:ticket:DMF-1042",
+      "used": ["urn:dmf:release:sec-policy/shadow/8", "urn:dmf:decision:DMF-1042",
+               "urn:dmf:report:verify-1", "urn:dmf:policy:gate/official@2"],
+      "qualifiedAssociation": [
+        { "type": "prov:Association", "agent": "urn:dmf:agent:carol", "hadRole": "dmf:releaseManager",
+          "hadPlan": "urn:dmf:policy:gate/official@2" }
+      ] },
+    { "id": "urn:dmf:release:sec-policy/official/8", "type": ["Entity", "Release"], "channel": "dmf:OFFICIAL",
+      "wasGeneratedBy": "urn:dmf:activity:promote-1",
+      "alternateOf": "urn:dmf:release:sec-policy/shadow/8",
+      "manifestRoot": "c93e…", "replaces": "urn:dmf:release:sec-policy/official/7" },
+
+    { "id": "urn:dmf:audit:sec-policy/412", "type": ["Entity", "AuditEvent"],
+      "auditChain": "urn:dmf:doc:sec-policy", "auditSeq": 412,
+      "prevHash": "e04f…", "entryHash": "3b9d…",
+      "wasGeneratedBy": "urn:dmf:activity:promote-1" }
+  ]
+}

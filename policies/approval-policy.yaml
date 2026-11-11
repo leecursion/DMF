@@ -1,0 +1,55 @@
+# ApprovalPolicy (prov:Plan) — urn:dmf:policy:approval/standard@3
+# Stored immutably in dmf.policy; tickets reference the exact version + body_sha256.
+#
+# risk_level = max( risk_floor(touched mutability),         # restrict.risk_floor()
+#                   classification_floor[doc.classification],
+#                   kind_floor[ticket.kind],
+#                   size_floor(changed modules / bytes) )
+kind: APPROVAL
+name: standard
+version: 3
+
+classification_floor: { PUBLIC: 0, INTERNAL: 1, CONFIDENTIAL: 2, RESTRICTED: 2 }
+kind_floor:
+  EDIT: 0
+  DECOMPOSE: 1            # structure change, content-neutral (manifest of leaves must match)
+  MERGE: 1
+  CONFLICT_RESOLUTION: 1
+  ROLLBACK: 1             # escalates to 2 if target is older than current OFFICIAL release
+  PROMOTION: 2
+  POLICY_CHANGE: 3
+  CORE_AMENDMENT: 3
+size_floor:
+  - { max_changed_modules: 3,  max_changed_bytes: 20000, level: 0 }
+  - { max_changed_modules: 10, max_changed_bytes: 200000, level: 1 }
+  - { otherwise: true, level: 2 }
+
+levels:
+  R0:  # trivial: typo in MUTABLE module of a PUBLIC doc
+    required_approvals: 0
+    automated_gate: [verification.blocking_pass]
+    approver_roles: []
+  R1:
+    required_approvals: 1
+    approver_roles: [reviewer, document_owner]
+  R2:
+    required_approvals: 2
+    must_include_roles: [document_owner]
+    approver_roles: [reviewer, document_owner, compliance]
+  R3:  # immutable core / policy change
+    required_approvals: 3
+    must_include_roles: [document_owner, governance_board]
+    approver_roles: [governance_board, document_owner, compliance, security_officer]
+    cooling_period: PT24H        # time-lock between last approval and commit/promotion
+    distinct_org_units: 2        # approvers from >= 2 departments (ABAC attr: dept)
+
+rules:
+  separation_of_duties: true      # author/requester can never approve (DB trigger approval_sod)
+  bind_to_manifest_root: true     # any content change after a vote invalidates the vote
+  reject_is_veto: true            # a single REJECT from a required role ends the ticket
+  approval_ttl: P14D              # votes older than this must be renewed
+  delegation:
+    allowed: true                 # prov:actedOnBehalfOf; recorded on the Association
+    max_depth: 1
+    forbidden_for_levels: [R3]
+  software_agents_may_approve: [R0]   # bots only satisfy automated gates

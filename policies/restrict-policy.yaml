@@ -1,0 +1,42 @@
+# RestrictPolicy (prov:Plan, cmis:policy) — urn:dmf:policy:restrict/security-policy@1
+# Applied in the RESTRICT_CHECK stage before any verification or approval is spent.
+kind: RESTRICT
+name: security-policy
+version: 1
+
+zones:
+  IMMUTABLE_CORE:
+    description: Normative rules, legal clauses, definitions referenced by other documents.
+    modules: [core.rules, core.definitions]
+    change_via: [CORE_AMENDMENT]          # only ticket kind allowed to change restrict_seal
+    lock_mode: exclusive                  # pg_advisory_xact_lock on document while committing
+  RESTRICTED:
+    description: Scope, exceptions, roles — mutable but risk floor R2.
+    modules: [sec.scope, sec.exceptions, sec.roles]
+    risk_floor: 2
+  MUTABLE:
+    description: Everything else (intro, examples, appendices).
+    default: true
+
+dependencies:
+  require_closure: true           # every depends_on resolves inside the same version
+  forbid_cycles: true
+  cross_document:                 # pin external dependencies to an OFFICIAL manifest_root
+    pin: manifest_root
+    allowed_channels: [OFFICIAL]
+  on_dependency_change: open_review_ticket   # dependents get an R1 ticket automatically
+
+access:                            # coarse; fine-grained in policies/authz.cedar
+  read:   { min_clearance: CONFIDENTIAL }
+  edit:   { roles: [editor, document_owner] }
+  restricted_edit: { roles: [document_owner] }
+  core_amendment: { roles: [governance_board] }
+
+checks:                            # implemented by dmf_integrity.restrict.check_restrictions
+  - CORE_REMOVED
+  - CORE_MODIFIED
+  - CORE_ADDED
+  - CORE_DOWNGRADED
+  - SEAL_MISMATCH
+  - DANGLING_DEPENDENCY
+  - DEPENDENCY_CYCLE

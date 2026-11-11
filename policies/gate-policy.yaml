@@ -1,0 +1,45 @@
+# GatePolicy (prov:Plan) — urn:dmf:policy:gate/official@2
+# Evaluated by the PromoteActivity. All gates must hold for the SAME manifest_root.
+kind: GATE
+name: official
+version: 2
+
+gates:
+  G1_identity:
+    rule: shadow_release.manifest_root == candidate.manifest_root == verification.manifest_root
+          == decision.subject_manifest_root
+    enforced_by: [service, db_trigger release_promotion]
+  G2_verification:
+    rule: latest verification_run for manifest_root has verdict PASS under the
+          acceptance policy version that is current at promotion time
+    max_age: P7D
+  G3_approval:
+    rule: decision.outcome == APPROVE under approval policy effective at decision time
+    plus: cooling_period elapsed (R3)
+  G4_shadow_soak:
+    rule: shadow release ACTIVE for >= soak_period AND observations >= min_observations
+    soak_period: { R0: PT0S, R1: PT1H, R2: PT24H, R3: P3D }
+    min_observations: { R0: 0, R1: 10, R2: 100, R3: 300 }
+    observation: one shadow read/render/consumer evaluation compared against OFFICIAL
+  G5_shadow_diff:
+    rule: no unresolved discrepancy in shadow-vs-official comparison
+          (consumer contract tests, rendered output, downstream rule-engine results)
+    max_unexplained_diff_rate: 0.0
+  G6_restrict:
+    rule: restrict_seal unchanged vs current OFFICIAL, or ticket.kind == CORE_AMENDMENT approved
+  G7_no_open_blockers:
+    rule: no OPEN CONFLICT_RESOLUTION tickets and no dependent docs with failed pinned-ref checks
+  G8_audit_healthy:
+    rule: document audit chain verifies up to head AND head is covered by a checkpoint
+          no older than PT15M (or a fresh checkpoint is taken as part of promotion)
+  G9_freeze_window:
+    rule: now() not inside a declared change-freeze calendar (unless R0 hotfix with override)
+
+on_promotion:
+  - insert OFFICIAL release (promoted_from = shadow release, same version_id)
+  - previous OFFICIAL release -> SUPERSEDED (same transaction)
+  - copy content blobs to WORM bucket (S3 Object Lock, compliance mode)
+  - append audit event release.promote and force checkpoint
+
+on_failure:
+  - ticket stays SHADOW; failing gates recorded as audit event gate.fail with evidence

@@ -1,0 +1,65 @@
+# AcceptanceCriteria (prov:Plan) — urn:dmf:policy:acceptance/security-policy@7
+# Each verifier is a SoftwareAgent; results are bound to the manifest_root they ran against.
+kind: ACCEPTANCE
+name: security-policy
+version: 7
+
+criteria:
+  # ---- integrity (automatic, always blocking)
+  - id: AC-INT-01
+    title: Manifest root recomputes from stored module revisions
+    check: integrity.manifest_recompute
+    mode: automatic
+    blocking: true
+  - id: AC-INT-02
+    title: Every content blob hash matches object-storage bytes
+    check: integrity.cas_rehash
+    mode: automatic
+    blocking: true
+
+  # ---- rule compliance (automatic)
+  - id: AC-RULE-01
+    title: Required sections present (core.rules, sec.scope, sec.roles)
+    check: structure.required_modules
+    params: { modules: [core.rules, sec.scope, sec.roles] }
+    mode: automatic
+    blocking: true
+  - id: AC-RULE-02
+    title: Terminology uses defined terms from core.definitions
+    check: lint.glossary
+    mode: automatic
+    blocking: false
+  - id: AC-RULE-03
+    title: All cross-references resolve (internal anchors and pinned external docs)
+    check: refs.resolve
+    mode: automatic
+    blocking: true
+
+  # ---- fact check (semi-automatic)
+  - id: AC-FACT-01
+    title: Regulatory citations exist and are current in the regulation registry
+    check: facts.registry_lookup
+    params: { registry: urn:dmf:registry:regulations, max_age: P90D }
+    mode: automatic
+    blocking: true
+  - id: AC-FACT-02
+    title: Numerical claims (retention periods, thresholds) match source-of-truth config
+    check: facts.claim_extraction        # LLM-assisted extraction + deterministic comparison
+    mode: semi_automatic                 # outcome NEEDS_HUMAN until a reviewer confirms
+    blocking: true
+    human_confirmation_role: compliance
+
+  # ---- behavioural, expressed as Given/When/Then
+  - id: AC-BEH-01
+    title: Scope change does not drop systems listed in the asset inventory
+    given: asset inventory snapshot pinned at verification start
+    when: sec.scope is evaluated against the inventory
+    then: every system tagged tier=prod is in scope
+    check: scenario.asset_scope
+    mode: automatic
+    blocking: true
+
+verdict_rule:
+  PASS: all blocking criteria PASS (NEEDS_HUMAN must be resolved to PASS)
+  FAIL: any blocking FAIL
+  ERROR: any blocking ERROR (infra) -> rerun allowed, does not count as PASS
